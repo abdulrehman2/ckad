@@ -34,7 +34,7 @@ Every yaml file for k8s have 4 top level fields i.e.  `apiVersion`, `kind`, `met
 `spec` is the place where we setup the details for the container we want to run. spec is a dictionary.
 
 
-``` yaml
+```yaml
 
 apiVersion: v1
 kind: Pod
@@ -98,7 +98,7 @@ A controller is the brain of k8s, it is a set the processes that monitors k8s ob
 
 a *replication controller* allow us to make sure to run multiple instances of a POD at any given time thus allowing high availability.
 
-``` yaml
+```yaml
 apiVersion: v1
 kind: ReplicationController
 metadata:
@@ -159,4 +159,73 @@ to manually scale the replicate set you use `scale` command. You can either give
 kubectl scale --replicas=3 replicaset my-app-replica-set
 # or
 kubectl scale --replicas=3 -f replica-set-demo.yml
+```
+
+## Namespaces
+
+By default k8s create `default`, `kube-system`  namespaces.
+ - POD within the same namespace can access services by refering just name of service
+ - POD from one namespace can access service in another namespace by refering this structure `service-name.namespace-name.svc.local.cluster`
+
+to get pods in a different namespace other than default we use
+
+```bash
+kubectl get pods --namespace=dev
+```
+how to create a namespace ?
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+ name: dev
+```
+
+```bash
+kubectl create namespace dev
+# or
+kubectl create -f namespace-dev.yml
+```
+
+How to switch to dev namespace for current session ?
+
+```bash
+kubectl config set-context $(kubectl config current-context) --namespace=dev
+```
+
+we can assign resource quota to each namespaces for example
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+ name: my-quota
+ namespace: dev
+spec:
+ hard:
+  pods: "10",
+
+```
+
+## Imperative Commands
+
+
+```bash
+kubectl run nginx --image=nginx --dry-run=client -o yaml
+
+kubectl create deployment nginx --image=nginx --replicas=3 --dry-run=client -o yaml > nginx-deployment.yaml
+
+# this will automatically use the redis pod labels as selector 
+kubectl expose pod redis --port=6379 --name=redis-service --dry-run=client -o yaml 
+
+# or # this will not use the redis pod labels as selector instead  it will assume selectors as app=redis
+kubectl create service clusterip redis --tcp=6379:6379 --dry-run=client -o yaml
+
+# create a pod with custom port
+kubectl run custom-nginx --image=nginx --port=8080
+
+## Create a pod and expose it in a single command
+## *when you use expose command then port is required
+kubectl run httpd --image=httpd:alpine --expose=true --port=80
+
 ```
