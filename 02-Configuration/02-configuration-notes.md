@@ -246,8 +246,8 @@ echo -n 'bXktdXNlcm5hbWU=' | base64 --decode
 
 ```bash
 kubectl create secret generic <secret-name> \
---from-literal=<key>=<value-in-base64> \
---from-literal=<key>=<value-in-base64>
+--from-literal=<key>=<value> \
+--from-literal=<key>=<value>
 ```
 ### What if you want to pick key-values from a file ?
 
@@ -282,8 +282,8 @@ spec:
   - image: webapp-image
     name: webapp
     envFrom:
-     secretRef:
-      name: app-secret
+     - secretRef:
+        name: app-secret
 ```
 
 
@@ -317,3 +317,123 @@ volumes:
    secret:
     secretName: app-secret
 ```
+
+## Encrypt Secrets at rest 
+By default secrets in etcd are not encrypted.
+
+How to view data at rest in etcd ?
+
+```bash
+ETCDCTL_API=3 etcdctl \
+--cacert=/etc/kubernetes/pki/etcd/ca.crt   \
+--cert=/etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key  \
+get /registry/secrets/default/secret1 | hexdump -C
+```
+
+
+## Docker Security 
+- Containers and host share the same kernel they are not completely isolated.
+- They are isolated by using different namespaces within linux.
+- By default a container run using a root user, this root user is different in terms of capabilities it has as compare to the root user of the host.
+- We can change the user of a containe by eithe specifying it in the image file or with run command `--user=1000`
+
+## Secuirty Context
+We can configure security context at Pod level or container level
+- If security context is set at pod level it will be appicable to all containers inside the pod
+- If we configure the security context both at Pod and container, then container context will override the Pod context
+
+
+### Setting context at Pod level
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name : ubuntu-pod
+secuirtyContext:
+     runAsUser: 1000
+     capabilities:
+      add: ['MAC_ADMIN']
+spec:
+ containers:
+  - image: ubuntu
+    name: ubuntu
+```
+
+### Setting context at container level
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name : ubuntu-pod
+spec:
+ containers:
+  - image: ubuntu
+    name: ubuntu
+    secuirtyContext:
+     runAsUser: 1000
+     capabilities:
+      add: ['MAC_ADMIN']
+```
+
+```bash
+# how to get the name of user with which pod is running under
+kubectl exec ubuntu-sleeper -- whoami
+```
+
+## Service Accounts
+
+Service accounts are used by different services to access kubernetes cluster. We can control access to kubernetes cluster using Role based access control. 
+ - For example Prometheus access the k8s performance metrics using the service account
+- If an application hosted outside of a k8s cluster, and wanted to access some information from k8s (for eg. get list of pods) then we create a service account for this
+and k8s will create a relavant token (JWT) for this acount hold as a secret that will authenticate while accesing k8s API's
+- If an application is hosted inside the k8s then we mount the token secret as a volume that can be used by the application inside the Pod
+
+```bash
+# we can get the contents of a token by running
+kubectl exec -it my-dashobard-pod cat /var/run/secrets/kubernetes.io/serviceaccount
+```
+
+How to set the custom service account ?
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: my-dashboard-pod
+spec:
+ containers:
+  - name: my-kubernetes-dashboard
+    image: my-kubernetes-dashboard
+serviceAccountName: dashboard-sa
+#if you do not want to automount the default service account then use
+automountServiceAccountToken: false
+```
+
+
+- By default, every namespace has a service account with name `default`, this account secret is mounted as a volume automatically with every Pod we create inside the namespace. The default account has very limited access like running queries on k8s.
+- Before k8s 1.22 there was no expiration date/time of token and it is not bound to any specific audience.
+- In 1.22 `TokenRequestAPI` was introduced an API that will allow to provision tokens for service accounts, these tokens are (audience, time and object bound) hence more secure When a new Pod is created, a new token is generated using the TokenRequestAPI (via service account admission controller) and this token is mounted as a projected volume.
+
+```yaml
+
+metadata:
+ name: nginx
+spec:
+ containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+     - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+       name: kube-api-acccess-6mtg8
+       readOnly: true
+ volumes:
+  - name: kube-api-acccess-6mtg8
+    projected:
+     defaultMode: 420
+     sources:
+       - serviceAccountToken:
+           expirationSeconds: 3607
+           path: token
+           
+```
+
