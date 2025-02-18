@@ -34,7 +34,7 @@ docker push abdulrehman/my-custom-app
 
 What will happen if run `docker run ubuntu` ?
 
-Docker will run the container and imediately stop the container this is becuase containers are not meant to run operating systems rather they are use to run processes (web server, application etc.). When we run ubuntu as docker container the dockerfile list the `bash` as the `CMD` which is a shell that looks for a terminal, if no terminal is found  bash will exit
+Docker will run the container and immediately stop the container this is because containers are not meant to run operating systems rather they are use to run processes (web server, application etc.). When we run ubuntu as docker container the dockerfile list the `bash` as the `CMD` which is a shell that looks for a terminal, if no terminal is found  bash will exit
 
 what if we change the command while running the container
 
@@ -69,7 +69,7 @@ What if we want to change the number of seconds for the sleep command ?  we can 
 docker run ubuntu-sleeper sleep 10
 ```
 
-this approch is not very good, because the image already conveys that the container will sleep , then why are we specifying the sleep command again ? We can fix this by using `ENTRYPOINT` instruction in image file.
+this approach is not very good, because the image already conveys that the container will sleep , then why are we specifying the sleep command again ? We can fix this by using `ENTRYPOINT` instruction in image file.
 
 ```Dockerfile
 FROM Ubuntu
@@ -94,7 +94,7 @@ ENTRYPOINT ["sleep"]
 CMD ["5"]
 ```
 
-now we can run the container without speciying the sleep time
+now we can run the container without specifying the sleep time
 
 ```bash
 docker run ubuntu-sleeper
@@ -112,7 +112,7 @@ What if we want to replace the entrypoint at the runtime ?
 docker run --entrypoint sleep2.0 ubuntu-sleeper 10
 ```
 
-How this entrypoint and command maps to kubenetes Pod ? well this is quite straight forward
+How this entrypoint and command maps to kubernetes Pod ? well this is quite straight forward
 
 ```yaml
 apiVersion: v1
@@ -154,7 +154,7 @@ kubectl replace --force -f new-pod-definition.yaml
 ```
 
 ## Config Maps
-When we have many Pod definition files, then it become difficult to manage the environment data inside the Pod definition files, instead we can store the configuration seperately in config maps.
+When we have many Pod definition files, then it become difficult to manage the environment data inside the Pod definition files, instead we can store the configuration separately in config maps.
 
 How to create one using imperative way ?
 
@@ -222,16 +222,16 @@ spec:
   - image: web-app-color
     name: web-app-color
     env:
-     name: APP_COLOR
-     valueFrom:
-      configMapKeyRef:
-       name: app-config
-       key: APP_COLOR
+     - name: APP_COLOR
+       valueFrom:
+        configMapKeyRef:
+         name: app-config
+         key: APP_COLOR
 ```
 
 ## Secrets
 
-if you want to store senstive data as a configuration then use secrets instead of config map. Secret value is stored in base64 format.
+if you want to store sensitive data as a configuration then use secrets instead of config map. Secret value is stored in base64 format.
 We can use following commands to encode/decode a string to base44
 
 ```bash
@@ -299,16 +299,16 @@ spec:
   - image: webapp-image
     name: webapp
     env:
-     name: APP_COLOR
-     valueFrom:
-      secretKeyRef:
-       name: app-secret
-       key: APP_COLOR
+     - name: APP_COLOR
+       valueFrom:
+        secretKeyRef:
+         name: app-secret
+         key: APP_COLOR
 ```
 
 ### How to inject whole secret as a file in volumes ?
 
-If we inject a secret as a volume in a Pod, then every entry in secret will be stored as a seperate file in the volume.
+If we inject a secret as a volume in a Pod, then every entry in secret will be stored as a separate file in the volume.
 So if we create `app-secret`
 
 ```yaml
@@ -336,11 +336,11 @@ get /registry/secrets/default/secret1 | hexdump -C
 - Containers and host share the same kernel they are not completely isolated.
 - They are isolated by using different namespaces within linux.
 - By default a container run using a root user, this root user is different in terms of capabilities it has as compare to the root user of the host.
-- We can change the user of a containe by eithe specifying it in the image file or with run command `--user=1000`
+- We can change the user of a container by either specifying it in the image file or with run command `--user=1000`
 
-## Secuirty Context
+## Security Context
 We can configure security context at Pod level or container level
-- If security context is set at pod level it will be appicable to all containers inside the pod
+- If security context is set at pod level it will be applicable to all containers inside the pod
 - If we configure the security context both at Pod and container, then container context will override the Pod context
 
 
@@ -350,7 +350,7 @@ apiVersion: v1
 kind: Pod
 metadata:
  name : ubuntu-pod
-secuirtyContext:
+securityContext:
      runAsUser: 1000
      capabilities:
       add: ['MAC_ADMIN']
@@ -370,7 +370,7 @@ spec:
  containers:
   - image: ubuntu
     name: ubuntu
-    secuirtyContext:
+    securityContext:
      runAsUser: 1000
      capabilities:
       add: ['MAC_ADMIN']
@@ -386,12 +386,12 @@ kubectl exec ubuntu-sleeper -- whoami
 Service accounts are used by different services to access kubernetes cluster. We can control access to kubernetes cluster using Role based access control. 
  - For example Prometheus access the k8s performance metrics using the service account
 - If an application hosted outside of a k8s cluster, and wanted to access some information from k8s (for eg. get list of pods) then we create a service account for this
-and k8s will create a relavant token (JWT) for this acount hold as a secret that will authenticate while accesing k8s API's
+and k8s will create a relevant token (JWT) for this account hold as a secret that will authenticate while accessing k8s API's
 - If an application is hosted inside the k8s then we mount the token secret as a volume that can be used by the application inside the Pod
 
 ```bash
 # we can get the contents of a token by running
-kubectl exec -it my-dashobard-pod cat /var/run/secrets/kubernetes.io/serviceaccount
+kubectl exec -it my-dashboard-pod cat /var/run/secrets/kubernetes.io/serviceaccount
 ```
 
 How to set the custom service account ?
@@ -412,7 +412,7 @@ automountServiceAccountToken: false
 
 - By default, every namespace has a service account with name `default`, this account secret is mounted as a volume automatically with every Pod we create inside the namespace. The default account has very limited access like running queries on k8s.
 - Before k8s 1.22 there was no expiration date/time of token and it is not bound to any specific audience.
-- In 1.22 `TokenRequestAPI` was introduced an API that will allow to provision tokens for service accounts, these tokens are (audience, time and object bound) hence more secure When a new Pod is created, a new token is generated using the TokenRequestAPI (via service account admission controller) and this token is mounted as a projected volume.
+- In 1.22 `TokenRequestAPI` was introduced an API that will allow to provision tokens for service accounts, these tokens are (audience, time and object bound) hence more secure When a new Pod is created, a new token is generated using the TokenRequestAPI (via service account admission controller) and this token is mounted as a projected volume to the Pod.
 
 ```yaml
 
@@ -437,3 +437,20 @@ spec:
            
 ```
 
+- In 1.24, no longer a secret is created, with the creation of service account, instead if you want to create one you can do that explicitly.
+
+```bash
+kubectl create token service-account-name
+```
+ or you can create a yaml
+
+ ```yaml
+apiVersion: vi
+kind: Secret
+type: kubernetes.io/service-account-token
+matedata:
+  name: secretname
+  annotations:
+   kubernetes.io/service-account.name: dashboard-sa
+
+ ```

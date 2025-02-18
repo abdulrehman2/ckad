@@ -1,7 +1,7 @@
 # 1. Core Concepts
 ## PODS
 - Pods are an abstraction over the running container in k8s.
-- We can run multiple containers inside the same pod but usually that not the case when we want to scale the application, instead we run each container as a seperate POD
+- We can run multiple containers inside the same pod but usually that not the case when we want to scale the application, instead we run each container as a separate POD
 - We can run multiple containers inside same pod , but these containers are of different type, for example (helper containers)
 Containers inside the same POD will have access to same network space and storage, this will automatically handled by k8s
 
@@ -164,8 +164,8 @@ kubectl scale --replicas=3 -f replica-set-demo.yml
 ## Namespaces
 
 By default k8s create `default`, `kube-system`  namespaces.
- - POD within the same namespace can access services by refering just name of service
- - POD from one namespace can access service in another namespace by refering this structure `service-name.namespace-name.svc.local.cluster`
+ - POD within the same namespace can access services by referring just name of service
+ - POD from one namespace can access service in another namespace by referring this structure `service-name.namespace-name.svc.local.cluster`
 
 to get pods in a different namespace other than default we use
 
