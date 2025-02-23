@@ -454,3 +454,136 @@ matedata:
    kubernetes.io/service-account.name: dashboard-sa
 
  ```
+
+ ## Resource Requirements
+ When we create a Pod, we can specify the minimum amount of memory and compute requirements for a a specific container. The scheduler is responsible to determine the best node that can handle these resource requirements and then create a Pod.
+
+ ```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name : ubuntu-pod
+spec:
+ containers:
+  - image: ubuntu
+    name: ubuntu
+    resources:
+     requests:
+      memory: '4Gi'
+      cpu: 1
+ ```
+
+ ### CPU units
+- 1 cpu mean different based on the environment
+  - 1 = Azure Core
+  - 1 = GCP Core
+  - 1 = AWS vCPU
+  - 1 = Hyper thread
+- We can specify the compute/cpu as 1, 0.1 or 100m where `m` stands for mili. we can go as low as 1m but not lower than that. 
+
+
+### Memory units
+- Kubernetes has 2 units supported for memory
+- Note the difference between `G` and `Gi`
+
+|Type|Unit|Value|
+|--|--|--|
+|1 Gigabyte|G|1,000,000,000 bytes|
+|1 Megabyte|M|1,000,000 bytes|
+|1 kilobyte|K|1,000 bytes|
+|--|--|--|
+|1 Gibibyte|Gi|1,073,741,824 bytes|
+|1 Mebibyte|Mi|1,048,576 bytes|
+|1 kibibyte|Ki|1,024 bytes|
+
+By default, the container has no restrictions on how much memory it can consume, we can limit this by using `limits`
+
+ ```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name : ubuntu-pod
+spec:
+ containers:
+  - image: ubuntu
+    name: ubuntu
+    resources:
+     requests:
+      memory: '1Gi'
+      cpu: 1
+     limits:
+      memory: '2Gi'
+      cpu: 2
+ ```
+
+ ** When a pod tries to exceed the cpu limit, then system will throttle the cpu, so that it cannot consume more than that, however in case of memory, the POD can use more memory than it is mentioned in limits, but if it does it for a longer period of time, then k8s will terminate the Pod with OOM (Out of Memory) error.
+
+
+###  Request/Limit Behavior
+
+ #### No Request and Limit Set
+ In this case one Pod may consume all the resources, while other Pod will have no resources left.
+
+ #### No Request but Limit Set
+ In this case , limits will be considered as the request i.e. (request=limit), this will make sure all pods will get at least the requested resources
+
+ #### Request and Limit Set
+ In this case, Pods will get the requested resources, but can't consume more than the limits. The problem with this approach is that if one Pod needs more cpu cycles than the limit and these cycles are already available (since other Pod is not consuming it), then the Pod will under perform. 
+
+#### Request set but not Limit
+ In this case, Pods will get the requested resources, and they can consume, hence resources will not be under used.
+
+ ## How to set default limits
+ We can set a configuration to define the default limits/request for all new containers. Changing these limits will not affect existing pods rather only new one.
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+ name: cpu-resource-constraint
+spec:
+ limits:
+  - default:
+     cpu: 500m      #limit
+    defaultRequest:
+     cpu: 500m      #request
+    max:
+     cpu: "1"       #limit
+    min:
+     cpu: 100m      #request
+    type: Container
+ ```
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+ name: memory-resource-constraint
+spec:
+ limits:
+  - default:
+     memory: 1Gi      #limit
+    defaultRequest:
+     memory: 1Gi      #request
+    max:
+     memory: 1Gi       #limit
+    min:
+     memory: 500Mi      #request
+    type: Container
+ ```
+
+ ## Resource Quota
+We can set resource quota at namespace level, so that any given namespace should not consume more than the limits
+
+  ``` yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+ name: my-resource-quota
+spec:
+ hard:
+   requests.cpu: 4
+   requests.memory: 4Gi
+   limits.cpu: 10
+   limits.memory:10Gi
+ ```
