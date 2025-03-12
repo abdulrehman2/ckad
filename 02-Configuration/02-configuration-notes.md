@@ -587,3 +587,72 @@ spec:
    limits.cpu: 10
    limits.memory:10Gi
  ```
+
+## Taints and Toleration
+
+- If we want to make sure that some nodes should not be used by certain Pods, 
+  then we add taint (repellant) to that particular nodes. By default Pods are not tolerant to taints.
+  Meaning a node that has some taint will not allow to schedule any Pod that is not tolerated for that particular taint.
+- If we want to make sure that only certain pod can be scheduled on a node,
+  we first add the taint on the node and we make that pod tolerant to that particular taint,
+  in this way only certain pods can be placed on certain nodes.
+
+> Taints are set on nodes, while toleration are set on Pods
+
+### How to taint a node ?
+
+```bash
+kubectl taint nodes node-name key=value:taint-effect
+
+#example if we want to taint a node for Pods having key value pair like app:blue then
+
+kubectl taint nodes node-name app=blue:NoSchedule
+```
+
+taint effects can be  
+ - NoSchedule (will not schedule pods that are not tolerant)
+ - PreferNoSchedule (will try not to schedule pods that are not tolerant but not guaranteed)
+ - NoExecute (no schedule for new pods and existing pods will be terminated if not tolerate the taint)
+
+
+### How to tolerate a Pod ?
+add tolerations section under spec, and make sure to quote the values for key, operator, value and effect
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name : ubuntu-pod
+spec:
+ containers:
+  - image: ubuntu
+    name: ubuntu
+  tolerations:
+   - key: "app"
+     operator: "Equal"
+     value: "blue"
+     effect: "NoSchedule" 
+```
+
+## Node Selector
+ - When we want that a certain pod should always be scheduled on a certain node, than we can set the node selector for each pod.
+ - We first have to add a label to the node, then we will mention it as a selector in pod definition
+
+```bash
+kubectl label node node-1 size=Large
+```
+
+after this we can add the selector in pod
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: data-processor
+spec:
+ containers:
+  - name: data-processor
+    image: data-processor
+ nodeSelector:
+  size: Large
+```
+> Node selectors has limitations, we only use a single label and selector to achieve our goal. What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have **node affinity**.
