@@ -655,4 +655,46 @@ spec:
  nodeSelector:
   size: Large
 ```
-> Node selectors has limitations, we only use a single label and selector to achieve our goal. What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have **node affinity**.
+> Node selectors has limitations, we only use a single label and selector to achieve our goal.
+ What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have **node affinity**.
+
+ ## Node Affinity
+
+
+ ```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: data-processor
+spec:
+ containers:
+  - image: data-processor
+    name: data-processor
+ affinity:
+  nodeAffinity:
+   requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+     - matchExpressions:
+       - key: size
+         operator: In
+         values:
+          - Large
+          - Medium
+ ```
+
+ There are many operators available for example
+- `Exists` operator will make sure that the a particular label exists on a node, no need to check the value
+- `NotIn` operator will be opposite of `In`
+
+What will happen if the Pod does not find any node with given label or the label is changed in the future ? To answer this question we have to consider the 
+
+ - requiredDuringSchedulingIgnoredDuringExecution
+    - if no node is found with matching label then the pod will not be scheduled.
+ - preferredDuringSchedulingIgnoredDuringExecution
+    - k8s will try to schedule the pod on a node with matching label, however if not found Pod will be scheduled on some other node.
+
+
+|Type|DuringScheduling|DuringExecution|
+|----|----------------|---------------|
+|Type 1| Required|Ignored|
+|Type 2| Preferred|Ignored|
