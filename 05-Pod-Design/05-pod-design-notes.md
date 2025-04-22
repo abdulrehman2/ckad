@@ -106,4 +106,11 @@ kubectl rollout undo deployment/deployment-name
 ```
 
 # Blue Green Deployment
-We deploy a version of app and we route traffic to it, lets call it version-1 this is the `blue`. Later we deploy a newer version (version-2) of the app this is `green`. Once everything looks good, the traffic from version-1 is shifted to version-2. 
+We deploy a version of app and we route traffic to it, lets call it version-1 this is the `blue`. Later we deploy a newer version (version-2) of the app this is `green`. 
+Once everything looks good, the traffic from version-1 is shifted to version-2.
+
+
+ # Canary Deployment
+When we want to deploy two versions of same application, but only want to route small amount of traffic to the new version, we can use the canary deployment.
+Lets say we have a deployment with 5 replicas (version-1), we can deploy a new deployment with only one replica and we have a common service that will route traffic between
+these two deployments. This way we can achieve canary deployment by using k8s native components.
