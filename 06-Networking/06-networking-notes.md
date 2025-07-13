@@ -75,13 +75,11 @@ spec:
   type: front-end
 ```
 
-
-
 ## LoadBalancer 
  This allow to provision a load balancer in supported cloud providers. Hence enabling to distribute the load across multiple nodes. For example load balancing to a set of front end server.
 
-
 # Ingress
+An API object that manages external access to the services in a cluster, typically HTTP. An Ingress may be configured to give Services externally-reachable URLs, load balance traffic, terminate SSL / TLS, and offer name-based virtual hosting
 
 ## Scenario
 Let say we want to deploy a web app that will connect to database using a service. We want to access the application using `www.onlinestore.com`, we can expose the app using `nodePort` service and access the app using `www.onlinestore.com:node-port`. 
@@ -96,13 +94,197 @@ Now if we want to introduce another service let's say `www.onlinestore.com/watch
  - Every service will have a different load balancer
  - In order to route to different services, there will be another load balancer on top of it. (not a very efficient solution)
     - This will over complicate the setup
-    - Where you will setup the SSL
+    - Where you will setup the SSL ?
     - Everytime you configure a new service you have make changes in load balancer as well
 
-We can all of it using `Ingress` a kuberntes object that will allow to expose multiple services, load balancing, routing and other stuff. The ingress still need to be exposed as a Node port service or a load balancer in cloud environment.
+All of it can be done using `Ingress` a kuberntes object that will allow to expose multiple services, load balancing, routing and other stuff. The ingress still need to be exposed as a Node port service or a load balancer in cloud environment.
 
 Without ingress we can do it using a reverse proxy or load balancing solution like nginx, HAProxy or traefik. We have to configure URL routes, configuring SSL certificates and other configuration.
 
-> Ingress is implemented by Kubernetes in kind of the same way, first deploy the supported solution and provide the configuration (a set of rules). The solution is deploy is called `Ingress Controller`. And the set of rules are called `Ingress Resources`. 
+> Ingress is implemented by Kubernetes in kind of the same way, first deploy the supported solution and provide the configuration (a set of rules). The deployed solution is called `Ingress Controller`. And the set of rules are called `Ingress Resources`. 
 
 *By default k8s does not have an ingress controller, you have to install it manually*
+
+If you have a single service that need to be expose we can simply specify the service name and port like below
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+ name: ingress-wear
+spec:
+ backend:
+  service:
+    name: wear-service
+    port:
+      number: 80
+```
+If you have multiple domain entries in your DNS, you can point them to same ingress controller in your K8s cluster. For example 
+
+ - www.my-online-store.com
+ - www.wear.my-online-store.com
+ - www.watch.my-online-store.com
+ - Everything elese
+
+You can specify rules to route traffic based on different conditions. Within each rule you can specify different `paths` to route traffic to different backend services.
+
+For example for `www.my-online-store.com` we can have following paths
+- /wear
+- /watch
+- / 
+
+So we have a rule for each domain name and against each rule we can have multiple paths.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+ name: ingress-wear
+spec:
+ rules: 
+  - http:
+     paths:
+     - path: /wear
+       pathType: Prefix
+       backend:
+        service:
+         name: wear-service
+         port:
+          number: 80
+     - path: /watch
+       pathType: Prefix
+       backend:
+        service:
+         name: watch-service
+         port:
+          number: 80
+```
+
+K8s expect a default backend service in case on path matches, it route traffice to that service
+
+
+For multiple host names
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+ name: ingress-wear
+spec:
+ rules:
+  - host: wear.my-online-store.com
+     http:
+      paths:
+      - pathType: Prefix
+        backend:
+         service:
+          name: wear-service
+          port:
+           number: 80
+  - host: watch.my-online-store.com
+     http:
+      paths:
+       - pathType: Prefix
+         backend:
+          service:
+           name: watch-service
+           port:
+            number: 80
+```
+
+```bash
+kubectl create ingress simple  --rule="/bar=barservice-name:portnumber" --rule="/foo=foo-service-name:portnumber
+```
+
+## Networking Policies
+ Lets say we have a simple 3 tier architecture, a web server , an API server and a database server.
+
+![alt text](image-3.png)
+
+- User send request from browser to web server  at port 80 (ingress)
+- Web server send request to backend Server at port 5000 (egress)
+- App server accept request at port 5000 (ingress)
+- App Server send request to database server at port 3306 (egress)
+- Database server receive request from app server at port 3306 (ingress)
+
+![alt text](image-2.png)
+
+By default all pods and services can communicate with each other in a node, there is no restriction, so k8s is set in `Allow All` mode.
+
+
+![alt text](image-4.png)
+
+A network policy is another k8s object just like pod, services and replica sets. It allows us to isolate traffic (ingree/egress) to a pod. By default there is no isolation.
+
+
+ As discussed above , let us now create a policy that will only allow the traffic to database server from the backend server at port 3306
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+ name: db-policy
+spec:
+ podSelector:   # pod on which we apply the policy
+  matchLabels:
+   role: db
+ policyTypes:   # we can have both Ingress and Egress rules here
+  - Ingress
+ ingress:
+  - from:
+    - podSelector:
+       matchLabels:
+        name: api-pod
+      namespaceSelector:    # if we want only pods (with label name=api-pod) from a sepcific namespace can reach to database we have to provide a namespace selector as well.
+       matchLabels:
+        name: prod
+    - ipBlock:
+        cidr: 192.168.5.10/32
+    ports:
+     - protocol: TCP
+       port: 3306
+```
+Things to note in above template 
+- `podSelector` and `namespaceSelector` works as `AND` in above rule
+- If add a  dash (-) just before the `namespaceSelector` the first two rules will behave as `OR`
+- The first rule and second rule `ipBlock` works as `OR`
+- We don't have to add the egress for 3306 because the response from database to API will be allowed automatically
+
+
+> Kubernetes network policies are plugins based on the networking solution installed in cluster. Some of the solutions that support it are
+- Kube-router
+- Calico
+- Romana
+- Weave-net
+
+Solutions that don't support Network policies are
+- Flannel
+
+Now what if we want the database server to send a request to backup server (an agent installed on db server).
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+ name: db-policy
+spec:
+ podSelector:
+  matchLabels:
+   name: db-pod
+ policyTypes:
+  - Ingress
+  - Egress
+ ingress:
+ - from:
+   - podSelector:
+      matchLabels:
+       name: api-pod
+   ports:
+    protocol: TCP
+    port: 3306
+ egress:
+ - to:
+   - ipBlock:
+      cidr: 192.168.5.10
+   ports:
+    protocol: TCP
+    port: 3306
+```

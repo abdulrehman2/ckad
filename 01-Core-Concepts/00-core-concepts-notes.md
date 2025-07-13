@@ -28,6 +28,11 @@ Every yaml file for k8s have 4 top level fields i.e.  `apiVersion`, `kind`, `met
 | Service       | v1      |
 | ReplicaSet    | apps/v1 |
 | Deployment    | apps/v1 |
+| Ingress       | networking.k8s.io/v1| 
+| ConfigMap     | v1      |
+| Secret        | v1      |
+| LimitRange    | v1      |
+| ResourceQuota | v1      |
 
 `metadata` allow us to set the name of the pod and labels. We can add many labels as we want that can be used to filter pods later when we scale.
 

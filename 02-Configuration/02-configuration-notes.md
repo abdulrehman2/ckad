@@ -694,7 +694,7 @@ What will happen if the Pod does not find any node with given label or the label
     - k8s will try to schedule the pod on a node with matching label, however if not found Pod will be scheduled on some other node.
 
 
-|Type|DuringScheduling|DuringExecution|
-|----|----------------|---------------|
-|Type 1| Required|Ignored|
-|Type 2| Preferred|Ignored|
+|Type  |DuringScheduling|DuringExecution|
+|------|----------------|---------------|
+|Type 1| Required       |Ignored        |
+|Type 2| Preferred      |Ignored        |
