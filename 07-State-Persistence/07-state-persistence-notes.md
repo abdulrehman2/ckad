@@ -192,7 +192,7 @@ For `accessModes` we have following values
 # Persistent Volume Claims (PVC)
 A PersistentVolumeClaim (PVC) is a request for storage by a user or application in Kubernetes. It is how a pod claims and uses a PersistentVolume (PV).
 
-Kubernetes will try to find a volume that has the (sufficent capacity, access modes, volume modes, storage class) set in the request.
+Kubernetes will try to find a volume that has the (sufficient capacity, access modes, volume modes, storage class) set in the request.
 
 - A PV is like a physical disk or network file system.
 - A PVC is like asking for a disk of a certain size and access mode (RWO, ROX, RWX).
@@ -213,7 +213,7 @@ spec:
    storage: 500Mi
 ```
 
-if we create the above mentioned volume `pv-vol1` and then create the pvc `myclaim`, this claim will bound to the `pv-vol1` volume because requested storage is 500Mi whereas the volume support upto 1Gi.
+if we create the above mentioned volume `pv-vol1` and then create the pvc `myclaim`, this claim will bound to the `pv-vol1` volume because requested storage is 500Mi whereas the volume support up to 1Gi.
 
 
 ## What if there are multiple volumes that matches the given specification in request ?
@@ -237,7 +237,7 @@ selector:
 ## What will happen if we delete the claim ?
  - By default the underlying volume will not be deleted because by default the `persistentVolumeReclaimPolicy` is set to `Retain`. The administrator can manually delete the volume. And it cannot be used by any other claims.
 - if we set `persistentVolumeReclaimPolicy` to `Delete` then the volume will be deleted once the claim is deleted.
-- The third option is `Recyle`, this will scrub the data on volume when the claim is deleted, hence making the volume available to be used by other claims. 
+- The third option is `Recycle`, this will scrub the data on volume when the claim is deleted, hence making the volume available to be used by other claims. 
 
 ## How to configure claim on a Pod, Deployment and Replica set ?
 
@@ -259,3 +259,58 @@ spec:
      persistentVolumeClaim:
       claimName: myclaim
 ```
+
+
+# Storage Classes
+
+## Static Provisioning
+Lets say we want to create a volume in google cloud, we first need to provision a disk, then we can create a volume, this is called static provisioning. 
+
+```bash
+gcloud beta compute disks create --size 1GB --region us-east1
+```
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+ name: pv-1
+spec:
+ accessMode:
+  - ReadWriteOnce
+ capacity:
+  storage: 500Mi
+ gcePersistentDisk:
+  pdName: pd-disk
+  fsType: ext4
+```
+
+## Dynamic Provisioning
+How about the volume is created automatically when the pod needs the storage, in these kind of scenarios we need storage classes. When we create a storage class, we no longer need to create volumes, we just create the claims ,and these claims can automatically get their desired capacity from the storage class.
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+ name: google-storage
+provisioner: kubernetes.io/gce-pd
+
+then we mention the name of storage class in claim
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+ name: my-claim
+spec:
+ storageClassName: google-storage 
+ accessModes:
+  - ReadWriteOnce
+ resources:
+  requests:
+   storage: 500Mi
+```
+this will create a `PersistentVolume` behind the scenes and when a Pod requests a storage via claim ,this new volume will be used.
+
+We can have multiple storage classes, for example one using standard storage, other SSD and another for network file sharing. This will allow us to claim storage from different classes.
+
+
