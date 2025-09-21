@@ -400,7 +400,7 @@ spec:
  subdomain: mysql-h
  hostname: mysql-pod
 ```
-These two properties should be set at the Pod level in order to generate `A` DNS record for the Pods.But this will generate the A records with same address
+These two properties should be set at the Pod level in order to generate `A` DNS record for the Pods.**But this will generate the A records with same address**
 
 `mysql-pod.mysql-h.default.svc.cluster.local`
 
@@ -409,3 +409,41 @@ That's another difference between a `Deployment` and `StatefulSet`, you don't ne
 So for stateful set
 - Pod Name will act as ==> hostname
 - Service Name will act as  ==> subdomain
+
+
+## Storage in Stateful Set
+if we want to use the same volume for all the pods in a deployment or stateful set, then we can just use `volumes` property. If we want every pod should have a sepearte volume, then we will use `volumeClaimTemplate`
+
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+ name: mysql
+ labels:
+  app: mysql
+spec:
+ replicas: 3
+ serviceName: mysql-h            # this must be a headless service
+ selector:
+  matchLabels:
+   app: mysql
+ template:
+  metadata:
+   labels:
+    app: mysql
+  spec:
+   containers:
+    - image: mysql
+      name: mysql
+ volumeClaimTemplate:
+  - metadata:
+     name: data-volume
+    spec:
+     accessModes:
+      - ReadWriteOnce
+     storageClassName: google-storage
+     resources:
+      requests:
+       storage: 500Mi
+```
