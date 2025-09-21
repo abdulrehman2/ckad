@@ -293,7 +293,7 @@ kind: StorageClass
 metadata:
  name: google-storage
 provisioner: kubernetes.io/gce-pd
-
+```
 then we mention the name of storage class in claim
 
 ```yaml
@@ -313,4 +313,99 @@ this will create a `PersistentVolume` behind the scenes and when a Pod requests 
 
 We can have multiple storage classes, for example one using standard storage, other SSD and another for network file sharing. This will allow us to claim storage from different classes.
 
+# Stateful Set
 
+## Problem statement
+Let's say we have a scenario, where we want to deploy highly available MySql database. With following requirements
+
+ - Deployment should have a master and 2 slaves
+ - Slave 1 should copy the initial data from master, and then point to master for replication
+ - Slave 2 should copy the initial data from slave-1 and then point to master for replication
+
+## Challenges
+ - Since k8s assign dynamic IP's to every new Pod, we cannot use IP address to setup the communication between master and slaves.
+ - Also k8s assign random names to Pod, we also cannot use that
+ - Static host names should be there in order to setup the communication
+ - Pods should be created in order 
+  - Master should be there first, to first apply initial data dump
+  - Slave-1 should be next, so that it can be copy the initial data from master and then point for replication to master
+  - Similarly slave-2 should be initialized at the end
+
+ ## Characteristics
+  In such cases when we want an ordered deployment along with predicatable names for the Pods, like `mysql-0`,`mysql-1` and `mysql-2` we can acheive this using stateful set. 
+   - It is built for stateful apps like databases, kafka etc.
+   - It has a sticky nature, even if the pod restarts, it will still have the original name.
+   - Every pod in stateful set can have it own persistent volume claim (PVC)
+   - Pods are created one by one (mysql-0 first, then mysql-1, etc.).
+   - Updates happen in sequence, ensuring the app stays consistent.
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+ name: mysql
+ labels:
+  app: mysql
+spec:
+ replicas: 3
+ serviceName: mysql-h            # this must be a headless service
+ podManagementPolicy: Parallel   # by default pods are created in order, we can change it to Parallel
+ selector:
+  matchLabels:
+   app: mysql
+ template:
+  metadata:
+   labels:
+    app: mysql
+  spec:
+   containers:
+    - image: mysql
+      name: mysql
+```
+
+## Headless Service
+Since in initial requirements it was needed that writes should only go to the master pod and reads can be done from master and slaves also.
+How can we acheive this ? Since a regular service acts as a load balancer and distributes the traffice among all pods!.
+
+**We need a headless service**
+A headless service creates DNS entries for all underlying pods and allow us to access them using the DNS record
+
+A DNS record for all underlying pods will have following structure.
+
+`podname`.`headless-servicename`.`namespace`.`svc`.`cluster-domain`.`example`
+
+e.g
+1. mysql-0.mysql-h.default.svc.cluster.local
+2. mysql-1.mysql-h.default.svc.cluster.local
+3. mysql-2.mysql-h.default.svc.cluster.local
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+ name: mysql-h
+spec:
+ clusterIP: None  #this setting make it a headless service
+ ports:
+  - port: 3306
+ selector:
+  app: mysql
+```
+
+There are two properties in a `Deployment` under the spec section which can be used to set the domain and subdomain for the pods.
+
+```yaml
+spec:
+ subdomain: mysql-h
+ hostname: mysql-pod
+```
+These two properties should be set at the Pod level in order to generate `A` DNS record for the Pods.But this will generate the A records with same address
+
+`mysql-pod.mysql-h.default.svc.cluster.local`
+
+That's another difference between a `Deployment` and `StatefulSet`, you don't need to set he `subdomain` and `hostname`, instead you specify the headless service under the spec => `service` property that will generate the A records for all the underlying pods. 
+
+So for stateful set
+- Pod Name will act as ==> hostname
+- Service Name will act as  ==> subdomain
