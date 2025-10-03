@@ -59,21 +59,39 @@ curl https://kube-master:6443/version
 curl https://kube-master:6443/api/v1/pods
 ```
 
-k8s api's are grouped into multiple groups based on their purpose for example
+k8s api's are grouped into multiple groups based on their purpose.
 
-- /version  # getting version of cluster
-- /api      # cluster functionality (Core group)=>      namespace, events, configmaps, nodes, pods, services, secrets, endpoints, events, rc, bindings pv, pvc etc. 
-- /apis     # cluster functionality (Named group) =>    
-- /healthz
-- /metrics
-- /logs  # integrating logs with 3rd party tools
+## 1. Core Group (a.k.a. legacy group)
+The core group has no name (empty string).
 
- The named group has following API groups
+Its resources are accessed under /api/v1.
+
+Examples of core resources:
+- Pod
+- Service
+- ConfigMap
+- Secret
+- Namespace
+- Node
+
+You’ll notice their API version looks like just v1, e.g.:
+
+```yaml
+apiVersion: v1
+kind: Pod
+```
+
+## 2. Named Groups
+Named API groups have a name + version. They are accessed under /apis/<group>/<version>.
+
+Examples:
 - /apps
   - /v1
     - /deployments (list, get, create,delete, update, watch)
     - /replicaset
     - /statefulset
+- batch/v1 → Job, CronJob
+- rbac.authorization.k8s.io/v1 → Role, ClusterRole, RoleBinding
 - /extensions
 - /networking.k8s.io
   - /v1
@@ -83,6 +101,22 @@ k8s api's are grouped into multiple groups based on their purpose for example
 - /certificates.k8s.io
   - /v1
     - /certificatesigningrequests
+
+In manifests, you’ll see something like:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+```
+
+Some other examples of APIS are
+
+- /version  # getting version of cluster
+- /api      # cluster functionality (Core group)=> namespace, events, configmaps, nodes, pods, services, secrets, endpoints, events, rc, bindings pv, pvc etc. 
+- /apis     # cluster functionality (Named group)
+- /healthz
+- /metrics
+- /logs  # integrating logs with 3rd party tools
 
 ```bash
 curl https://kube-master:6443 -k # this will display all the group paths for example /api, /api/v1, /apis, /healthz etc.
@@ -114,8 +148,6 @@ user => Kubectl proxy => Kube ApiServer
 
 
 Also note the that **kube proxy** != **kubectl proxy**
-
-
 
 # Authorization
 
@@ -238,4 +270,132 @@ We can also set multiple modes --authorization-mode=Node, RBAC, Webhook. The aut
 Node => RBAC => Webhook
 
 > If permission is denied at any module, the request will be forwarded to next mode. Once a request is approved by any module, the request will be completed.
+
+
+
+
+# Validating & Mutating Admission Controller
+
+- `NamespaceExist` is an example of validating admission controller, as it will check if a namespace exist or not\
+- `DefaultStorageClass` is an example of mutating admission controller, as this will check during PVC creation whether a storage class is mentioned or not, if not it will add the default storage class set in the cluster. Hence it mutates the resource before it is created.
+
+Mutating admission controllers are executed before the validation admission controllers. This is because if the mutate AD change the request for example (`NamespaceAutoProvision`) will create the namespace if not exist, then the validation AD `NamespaceExist` will run, so that any changes done after mutation will be considered during validation.
+
+if it was other way round, the mutation AD will never run and request will always reject. 
+
+
+## Creating our own Admission controller.
+we can create custom AD of following types. Each can be hosted inside the k8s or outside the cluster. k8s will send the request to webhook server. And the server  will response with a response indicating whether the request is allowed or not.
+
+- MutationAdmission Webhook
+- ValidationAdmission Webhook
+
+Request => Admission Webhook Server => Response
+
+**Request**
+```json
+{
+"apiVersion": "admission.k8s.io/v1",
+"kind": "AdmissionReview",
+"request":{
+}
+}
+```
+
+**Response**
+```json
+{
+"apiVersion": "admission.k8s.io/v1",
+"kind": "AdmissionReview",
+"response":{
+  "uid": "<value from request.uid>",
+  "allowed": true
+} 
+}
+```
+
+## How to Configure a web hook ?
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+ name: "pod-policy.example.com"
+webhooks:
+- name: "pod-policy.example.com"
+  #url: "webhook.external.com"    # if deployed external
+  clientConfig:                   # if deployed on cluster
+   service: 
+    namespace: webhook-namespace
+    name: "webhook-service"
+   caBundle: "chas902u039uasdlkaj0924"
+  rules:                          # when webhook should be called
+   - apiGroups: [""]
+     apiVersions: ["v1"]
+     operations: ["CREATE"]
+     resources: ["pods"]
+     scope: "Namespaced"
+```
+
+# API Versions:
+- /v1alpha1 (when a new api version is made available to kubernetes and which is not enabled by default)
+  - Version Name vXalphaY (Eg: v1alpha1)
+  - Support (No commitment)
+  - Audience (early adapters to give feedback)
+  - Reilability (may have bugs)
+  - Tests (may lack e2e tests)
+  - Enable (No)
+
+- /v1beta1
+  - Version Name vXbetaY (Eg: v1beta1)
+  - Support (commit to complete the feature and move to GA)
+  - Audience (user interested in beta testing and to give feedback)
+  - Reilability (may have minor bugs)
+  - Tests (has e2e tests)
+  - Enable (Yes)
+
+- /v1 (General Available Stable Version)
+  - Version Name vX (eg: v1)
+  - Support (will be present in future releases)
+  - Audience (All ysers)
+  - Reilability (highly reliable)
+  - Tests (has conformance tests)
+  - Enable (Yes)
+
+If multiple versions are available, then k8s will have a `Preferred`and  a `Storage` version.
+
+1. Storage Version
+The storage version is the version of the resource that the API server uses internally in etcd (the cluster database).
+
+No matter which version you use when creating or reading a resource (apps/v1, apps/v1beta1, etc.), Kubernetes will convert it to the storage version before persisting it.
+
+This ensures a consistent internal representation.
+
+**Example:**
+
+For Deployment, the storage version is apps/v1.
+
+Even if you POST a Deployment in apps/v1beta2, the API server converts it into apps/v1 before saving to etcd.
+
+2. Preferred Version
+The preferred version is the version that Kubernetes recommends clients use.
+It’s the version you’ll see by default when running kubectl get, `kubectl explain`, or when exporting YAML.
+It usually matches the most stable version of an API group (often v1).
+
+**Example:**
+For apps group:
+Preferred version: apps/v1
+Old versions like apps/v1beta1 or apps/v1beta2 may still exist for compatibility, but they’re not preferred.
+
+
+# API Deprecations
+## Rule 1
+API elements many only be removed by incrementing the version of API group. Let's say we have a new api
+
+  - /kodecloud.com
+    - /v1alpha1
+      - /course
+      - /webinar (will remain available in v1alpha1)
+    - /v1alpha2
+      - /course (removed webinar)
 
