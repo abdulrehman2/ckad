@@ -1,19 +1,3 @@
-1. ## List of resources along with API Version 
-```bash
-kubectl api-resources
-```
-
-2. ## List of API versions
-```bash
-kubectl api-versions
-```
-
-3. ## Get API version of a particular resource
-```bash
-kubectl explain deployment
-```
-
-# 9. Helm
 ```bash
 # install a package
 helm install release-name wordpress
@@ -42,4 +26,3 @@ helm list
 # if to only pull the chart
 helm pull --untar bitnami/wordpress
 ```
-
