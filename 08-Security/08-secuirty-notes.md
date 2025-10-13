@@ -7,7 +7,7 @@ They are managed outside of the Kubernetes cluster via independent services like
 ## Service Accounts
 Service Accounts allow in-cluster processes to communicate with the API server to perform various operations. Most of the Service Accounts are created automatically via the API server, but they can also be created manually. The Service Accounts are tied to a particular Namespace and mount the respective credentials to communicate with the API server as Secrets.
 
-In order to limit access to cluster for admins and devs, we can apply authentication mechanism using following techiniques supported.
+In order to limit access to cluster for admins and devs, we can apply authentication mechanism using following techniques supported.
 
 - Static file based username/password
 - Static token file
@@ -134,7 +134,7 @@ Another option is to setup a **kubectl proxy**
 ```bash
 kubectl proxy # this launches a proxy service locally on port 8001 and uses the certificate from kube config file to access the cluster. This way we don't need to pass the certificate details in the curl command
 ```
-Proxy will forware the user request to the API server.
+Proxy will forward the user request to the API server.
 
 user => Kubectl proxy => Kube ApiServer
 
@@ -167,8 +167,8 @@ User request `kube-api` server to perform certain operations, similarly `kubelet
 It pairs with the `NodeRestriction` admission plugin, which further restricts what kubelets can modify.
 
 ## ABAC (Attribute-Based Access Control)
-A user or group of users are allowed to perform certain opertions within the cluster. For example dev users can create, read, delete pods. For that we create a policy in JSON format and pass this file to api server.
-- If we want to make any changes to secuirty of these users, we have modify it for each user and restart the api server (not very convinient)
+A user or group of users are allowed to perform certain operations within the cluster. For example dev users can create, read, delete pods. For that we create a policy in JSON format and pass this file to api server.
+- If we want to make any changes to security of these users, we have modify it for each user and restart the api server (not very convenient)
 ```json
 {
     "kind":"Policy",
@@ -255,7 +255,7 @@ kubectl auth can-i create delete-nodes --as dev-user  --namespace test
 
 
 ## Webhook
-If we dont want to manage the access of users inside the kubernetes, and let it manage somewhere else, we can use `Open Policy Agent`
+If we don't want to manage the access of users inside the kubernetes, and let it manage somewhere else, we can use `Open Policy Agent`
 - k8s will send a request to the agent to verify if user is allowed to perform the action
 - agent will allow or deny the request
 
@@ -271,10 +271,66 @@ Node => RBAC => Webhook
 
 > If permission is denied at any module, the request will be forwarded to next mode. Once a request is approved by any module, the request will be completed.
 
+# Cluster Roles
+In kubernetes we have 2 type of resources
+ - namespace scoped (pods, services, pvc, deployments, replica set, configmaps, roles, role binding etc)
+ - cluster scoped (nodes, pv, namespaces, cluster roles, cluster role bindings)
+
+ When we want to limit user access for cluster scoped resources, we use cluster roles.
+
+ ```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+ name: cluster-administrator
+rules:
+ - apiGroups: [""]
+   resources: ["nodes"]
+   verbs: ["list", "get","create","delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+ name: cluster-admin-role-binding
+subjects:
+ - kind: User
+   name: cluster-admin
+   apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-administrator
+  apiGroup: rbac.authorization.k8s.io
+ ```
+
+ > Keep in mind, we can also create cluster roles for a namespace scoped resources, the difference is a cluster role will allow access to all namespaces for a given namespace scoped resource. 
 
 
+# Admission Controller
 
-# Validating & Mutating Admission Controller
+**kubectl** => **Authentication** => **Authorization** => **Admission Controller** =>  **Perform Action**
+
+RBAC can only restrict at different k8s objects level, for example user can  either create pods, services etc.
+What if we want to enforce more detail rules for example
+ - every resource should have labels
+ - No pod should be run as root user
+ - Only allow images from a certain registry.
+
+These kind of things can only be achieved via admission controllers.
+
+- AlwaysPullImages (ensure every time a pod is created ,its image should be pulled)
+- DefaultStorageClass (observe creation of PVC's and attach the default class to them if not specified)
+- EventRateLimit (limit the number of requests to avoid API server flooding with requests)
+- NamespaceExists (Rejects requests to namespaces that don't exist)
+
+```bash
+# check which admission controllers are enabled
+kube-apiserver -h | grep enable-admission-plugins
+
+kubectl exec kube-apiserver-controlplane -n kube-system --kube-apiserver -h | grep enable-admission-plugins
+```
+
+## Validating & Mutating Admission Controller
 
 - `NamespaceExist` is an example of validating admission controller, as it will check if a namespace exist or not\
 - `DefaultStorageClass` is an example of mutating admission controller, as this will check during PVC creation whether a storage class is mentioned or not, if not it will add the default storage class set in the cluster. Hence it mutates the resource before it is created.
@@ -342,7 +398,7 @@ webhooks:
   - Version Name vXalphaY (Eg: v1alpha1)
   - Support (No commitment)
   - Audience (early adapters to give feedback)
-  - Reilability (may have bugs)
+  - Reliability (may have bugs)
   - Tests (may lack e2e tests)
   - Enable (No)
 
@@ -350,15 +406,15 @@ webhooks:
   - Version Name vXbetaY (Eg: v1beta1)
   - Support (commit to complete the feature and move to GA)
   - Audience (user interested in beta testing and to give feedback)
-  - Reilability (may have minor bugs)
+  - Reliability (may have minor bugs)
   - Tests (has e2e tests)
   - Enable (Yes)
 
 - /v1 (General Available Stable Version)
   - Version Name vX (eg: v1)
   - Support (will be present in future releases)
-  - Audience (All ysers)
-  - Reilability (highly reliable)
+  - Audience (All users)
+  - Reliability (highly reliable)
   - Tests (has conformance tests)
   - Enable (Yes)
 
@@ -398,4 +454,75 @@ API elements many only be removed by incrementing the version of API group. Let'
       - /webinar (will remain available in v1alpha1)
     - /v1alpha2
       - /course (removed webinar)
+
+# Rule 2
+API objects must be able to round trip between API versions in a given release without information loss, with the exception of whole REST resources that do not exist in some versions.
+
+> If an object (say, a Deployment) is stored in etcd in storage version (e.g., apps/v1), and a client requests it in another version (e.g., apps/v1beta1), Kubernetes must be able to convert it to that version and then back to the storage version without losing any data. This ensures that no fields or semantics are lost during version conversions — you can safely upgrade/downgrade clients across versions in the same Kubernetes release.
+
+
+Rule #4a: API lifetime is determined by the API stability level
+
+- GA (12 months or 3 releases)
+- Beta (9 months or 3 release) (have to keep the previous version with new beta release)
+- Alpha (0 releases) (we can remove previous alpha version when we release a new version)
+
+# Custom Resource Definition
+Lets say we want to use a custom resource that a kubernetes can handle, a wrapper around an existing object or a totally new resource, for this we need 2 things
+1. Custom Resource Definition (CRD)
+2. A custom controller to handle the new resource
+
+Suppose we have a scenario we want to book a flight, and we have something like this
+
+```yaml
+apiVersion: flights.com/v1
+kind: FlightTicket
+metadata:
+ name: my-flight-ticket
+spec:
+ from: Mumbai
+ to: London
+ number: 2
+```
+
+If we try to run apply this file, k8s will return a error, because k8s does not know about this resource, here we have to define a CRD
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+ name: flighttickets.flights.com
+spec:
+ scope: Namespaced  # whether this resource is namespace scoped or not
+ group: flights.com # api group we used earlier to create the resource
+ names:
+  kind: FlightTicket # kind we used earlier
+  singular: flightticket
+  plural: flighttickets
+  shortName:
+   - ft
+ versions:
+  - name: v1
+    server: true # version which API server will serve
+    storage: true # storage version
+    schema:
+     openAPIV3Schema:  # any custom properties the resource should have 
+      type: object
+      properties:
+       spec:
+        type: object
+        properties:
+         from:
+          type: string
+         to:
+          type: string
+         number:
+          type: number
+```
+## Custom Controller
+if we want to support custom resource definition, k8s needs a controller to manage those resources, we can write a controller in programming language of our choice, but Go is the preferred language as this well optimized for k8s caching and operators, or we can build a controller in a different language for example python and then run it as a pod in cluster.
+
+
+## Operator Framework
+The Operator Framework is an open-source toolkit designed to facilitate the development, deployment, and management of Kubernetes Operators. Operators are a method of packaging, deploying, and managing a Kubernetes application, extending the platform's capabilities to automate the lifecycle of complex, stateful applications.
 
