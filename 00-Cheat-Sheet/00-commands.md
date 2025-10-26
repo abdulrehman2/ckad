@@ -12,6 +12,25 @@ kubectl api-versions
 ```bash
 kubectl explain deployment
 ```
+4. Switching a namespace
+
+```bash
+kubectl config set-context --current --namespace=<desired-namespace>
+```
+
+5. Get all resources against a selector
+
+```bash
+kubectl get all --selector env=prod
+```
+
+6. Get metrics of a node/pod
+
+```bash
+kubectl top node
+kubectl top pod
+```
+
 
 # 9. Helm
 ```bash

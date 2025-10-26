@@ -37,11 +37,12 @@ spec:
 Similarly in services we define the selector like this
 
 ```yaml
-
 apiVersion: v1
 kind: Service
 metadata:
- app: backend-service
+ name: my-service
+ labels:
+  app: backend-service
 spec:
  selector:
   app: backend-app
@@ -58,7 +59,9 @@ ports:
 apiVersion: v1
 kind: Service
 metadata:
- app: backend-service
+ name: my-service
+ labels:
+  app: backend-service
  annotations: 
   custom.annotation: hello
 spec:
@@ -72,16 +75,47 @@ When we update a deployment for example change the labels, update the docker ima
 
 - `Recreate` strategy delete the old pods all at once and recreate the new pods, this will result in downtime as all the pods will be first deleted and then recreated.
 
-- `RollingUpdate` this strategy is more application friendly as it will only down one pod at a time and replace it with newer version and then go for the next pod, one by one (this is the default strategy) 
+- `RollingUpdate` this strategy is more application friendly as it will only down one pod at a time and replace it with newer version and then go for the next pod, one by one (this is the default strategy)
 
 
-> Under the hood, when we update a replica set, then the k8s will create a new replicate set, terminating each pod one at a time and replacing it with new 
-pod in the new set.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25
+          ports:
+            - containerPort: 80
+```
+
+ **Under the hood, when we update a replica set, then the k8s will create a new replicate set, terminating each pod one at a time and replacing it with new pod in the new set.**
 
 ## Rollout Status
 To check the rollout of a deployment we can use following command
 ```bash
 kubectl rollout status deployment/deployment-name
+```
+this will output something like this
+```bash
+Waiting for deployment "nginx-deploy" rollout to finish: 1 out of 3 new replicas updated...
+deployment "nginx-deploy" successfully rolled out
 ```
 
 ## Rollout History
@@ -90,7 +124,31 @@ kubectl rollout history deployment/deployment-name
 
 #Whenever we change the deployment a change-cause is recorded (what has changed), By default the `CHANGE-CAUSE` is not recorded , so we have to explicity pass the --record flag
 
-kubectl rollout history deployment/deployment-name --record
+#passing the --record flag
+kubectl set image deployment/nginx-deploy container-name=nginx:1.26 --record
+
+kubectl rollout history deployment/deployment-name
+```
+This shows all revisions of the deployment
+
+```bash
+deployment.apps/nginx-deploy
+REVISION  CHANGE-CAUSE
+1         <none>
+2         kubectl set image deployment/nginx-deploy nginx=nginx:1.26
+```
+
+you can also view the details of a particular revision
+
+```bash
+kubectl rollout history deployment/nginx-deploy --revision=2
+```
+
+## Rollback /Undo
+We can rollback the deployment if something goes wrong, this way the new replica set will be replaced by the older replica set
+
+```bash
+kubectl rollout undo deployment/deployment-name
 ```
 
 ## Updating a deployment
@@ -100,13 +158,6 @@ kubectl apply -f deployment.yaml
 
 # changing the image only
 kubectl set image deployment/deployment-name nginx-container=nginx:1.9.1
-```
-
-## Rollback /Undo
-We can rollback the deployment if something goes wrong, this way the new replica set will be replaced by the older replica set
-
-```bash
-kubectl rollout undo deployment/deployment-name
 ```
 
 # Blue Green Deployment
@@ -202,8 +253,8 @@ kind: Job
 metadata:
  name: my-job
 spec:
- completions: 3   # no of pods that should be created
- parallelism: 3   # by default pods are created in sequence (once one is completed then create next)
+ completions: 3   # no of pods that should be exited successfully
+ parallelism: 3   # by default pods are created in sequence (once one is completed then create next), by setting it to 3, we are creating 3 pods in parallel
  template:
   spec:
    restartPolicy: Never

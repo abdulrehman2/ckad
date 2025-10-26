@@ -239,7 +239,7 @@ We can use following commands to encode/decode a string to base44
 echo -n 'my-username' | base64
 
 # this will decode the string
-echo -n 'bXktdXNlcm5hbWU=' | base64 --decode
+echo -n 'bXktdXNlcm5hbWU=' | base64 -d
 ```
 
 ### How to create a secret in imperative way ?
@@ -270,7 +270,7 @@ data:
  DB_PASSWORD: cHJvZA== #prod
 ```
 
-### How to use the refer complete secret in pod definition ?
+### How to refer complete secret in pod definition ?
 
 ```yaml
 apiVersion: v1
@@ -543,10 +543,10 @@ metadata:
  name: cpu-resource-constraint
 spec:
  limits:
-  - default:
-     cpu: 500m      #limit
-    defaultRequest:
-     cpu: 500m      #request
+  - default:          # this section defines default limits
+     cpu: 500m      
+    defaultRequest:   # this section defines default requests
+     cpu: 500m
     max:
      cpu: "1"       #limit
     min:
@@ -575,7 +575,7 @@ spec:
  ## Resource Quota
 We can set resource quota at namespace level, so that any given namespace should not consume more than the limits
 
-  ``` yaml
+```yaml
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -585,8 +585,17 @@ spec:
    requests.cpu: 4
    requests.memory: 4Gi
    limits.cpu: 10
-   limits.memory:10Gi
+   limits.memory: 10Gi
  ```
+
+ | Feature               | LimitRange                                           | ResourceQuota                               |
+| --------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| Scope                 | Namespace                                            | Namespace                                   |
+| Enforces              | Per **Pod/Container** min/max/default for CPU/memory | **Total** resources or objects in namespace |
+| Prevents              | Bad per-pod configs                                  | One namespace hogging resources             |
+| When enforced         | On Pod creation                                      | On namespace-level tracking                 |
+| Behavior on violation | Pod rejected                                         | Pod rejected                                |
+
 
 ## Taints and Toleration
 
@@ -659,8 +668,6 @@ spec:
  What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have **node affinity**.
 
  ## Node Affinity
-
-
  ```yaml
 apiVersion: v1
 kind: Pod
@@ -698,3 +705,11 @@ What will happen if the Pod does not find any node with given label or the label
 |------|----------------|---------------|
 |Type 1| Required       |Ignored        |
 |Type 2| Preferred      |Ignored        |
+
+✅ How Node Affinity vs Taints/Tolerations vs NodeSelector
+
+| Feature                | Purpose                                                   |
+| ---------------------- | --------------------------------------------------------- |
+| **Node Affinity**      | Pod chooses node (pull-based scheduling)                  |
+| **Taints/Tolerations** | Node blocks pods unless tolerated (push-based protection) |
+| **nodeSelector**       | Simple exact match scheduling                             |
