@@ -664,10 +664,10 @@ spec:
  nodeSelector:
   size: Large
 ```
-> Node selectors has limitations, we only use a single label and selector to achieve our goal.
- What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have **node affinity**.
 
  ## Node Affinity
+ Node selectors has limitations, we only use a single label and selector to achieve our goal. What if we have a requirement where we want to place the pod in medium or large nodes, or we want to place pods on any node other than small nodes. To solve this problem we have  **node affinity**.
+
  ```yaml
 apiVersion: v1
 kind: Pod
