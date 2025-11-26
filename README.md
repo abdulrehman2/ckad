@@ -32,9 +32,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Resource exposure patterns
   - API resource reference
   - Configuration management commands
-
-*Use this section during exam preparation for quick command lookups.*
-
 ---
 
 ### [01-Core-Concepts](./01-Core-Concepts/)
@@ -54,8 +51,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
 - `04-deployment-demo.yml` - Deployment example
 - `05-namespace-demo.yml` - Namespace creation
 
-*Start here if you're new to Kubernetes. This section covers 13% of the exam.*
-
 ---
 
 ### [02-Configuration](./02-Configuration/)
@@ -71,8 +66,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
 **Example Files:**
 - `Dockerfile` - Sample Docker configuration
 
-*This section covers 18% of the exam. Understanding ConfigMaps and Secrets is crucial.*
-
 ---
 
 ### [03-MultiContainer-Pods](./03-MultiContainer-Pods/)
@@ -80,11 +73,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
 - `03-multicontainer-pods-notes.md` - Multi-container Pod design patterns
   - Sidecar containers
   - Init containers
-  - Ambassador pattern
-  - Adapter pattern
-
-*Covers advanced Pod design patterns (10% of exam).*
-
 ---
 
 ### [04-Observability](./04-Observability/)
@@ -94,9 +82,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Debugging Pods
   - Health checks (liveness and readiness probes)
   - Metrics and monitoring
-
-*Critical for understanding Pod lifecycle and troubleshooting (18% of exam).*
-
 ---
 
 ### [05-Pod-Design](./05-Pod-Design/)
@@ -108,9 +93,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Pod affinity
   - Taints and Tolerations
   - Rolling updates
-
-*Important for production-ready deployments (20% of exam).*
-
 ---
 
 ### [06-Networking](./06-Networking/)
@@ -120,9 +102,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Ingress
   - Network policies
   - DNS and service discovery
-
-*Essential for inter-Pod communication (13% of exam).*
-
 ---
 
 ### [07-State-Persistence](./07-State-Persistence/)
@@ -133,9 +112,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - PersistentVolumeClaims (PVC)
   - Storage Classes
   - StatefulSets
-
-*Covers data persistence and state management.*
-
 ---
 
 ### [08-Security](./08-Security/)
@@ -146,9 +122,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - RBAC basics
   - Secret management
   - Network policies
-
-*Critical for secure application deployment (14% of exam).*
-
 ---
 
 ### [09-Helm](./09-Helm/)
@@ -158,9 +131,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Values and templating
   - Releases and repositories
   - Best practices
-
-*Useful for application packaging and deployment.*
-
 ---
 
 ### [10-Kustomize](./10-Kustomize/)
@@ -169,9 +139,6 @@ This study guide is organized into **12 main sections**, each focusing on a spec
   - Overlays and bases
   - Patches and customizations
   - Multi-environment deployments
-
-*Alternative to Helm for configuration management.*
-
 ---
 
 ### [11-Practice-Questions](./11-Practice-Questions/)
@@ -186,9 +153,6 @@ Multiple practice scenarios with solutions:
 - `6.persistent-volume-with-pod.md` - Persistent storage scenarios
 - `7-sidecar.md` - Sidecar container patterns
 - `8.init-container.md` - Init container usage
-
-*These practice questions simulate real exam scenarios. Work through these regularly!*
-
 ---
 
 ## 🎯 How to Use This Repository
