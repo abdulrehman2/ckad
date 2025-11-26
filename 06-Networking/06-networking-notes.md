@@ -85,19 +85,19 @@ An API object that manages external access to the services in a cluster, typical
 Let say we want to deploy a web app that will connect to database using a service. We want to access the application using `www.onlinestore.com`, we can expose the app using `nodePort` service and access the app using `www.onlinestore.com:node-port`. 
 
 ### Deployment on local data center
-If we want to further make it simpler for user to access the website without adding the port while accesing the application, we can add a porxy server between our DNS server and the kubernetes cluster. The DNS server will forward the request to our proxy server (default port 80) and proxy server will forward it to the k8s on that specific port. This is how it is done we are deploying it on our data center
+If we want to further make it simpler for user to access the website without adding the port while accessing the application, we can add a proxy server between our DNS server and the kubernetes cluster. The DNS server will forward the request to our proxy server (default port 80) and proxy server will forward it to the k8s on that specific port. This is how it is done we are deploying it on our data center
 
 ### Deployment on a could provider
 When we have the same scenario as mentioned above but instead of deploying it locally, we are using a cloud provider for example GCP. When we configure the application everything will be the same except the kubernetes will request GCP to provision a load balancer that will route traffic from DNS server to the load balancer and this will then forward it to the k8s.
 
-Now if we want to introduce another service let's say `www.onlinestore.com/watch` and make the older application accesible using `www.onlinestore.com/wear`, we now have 2 set of applications deployed on same k8s cluster, each has it's own node port service to access, now how we can configure in cloud. 
+Now if we want to introduce another service let's say `www.onlinestore.com/watch` and make the older application accessible using `www.onlinestore.com/wear`, we now have 2 set of applications deployed on same k8s cluster, each has it's own node port service to access, now how we can configure in cloud. 
  - Every service will have a different load balancer
  - In order to route to different services, there will be another load balancer on top of it. (not a very efficient solution)
     - This will over complicate the setup
     - Where you will setup the SSL ?
-    - Everytime you configure a new service you have make changes in load balancer as well
+    - Every time you configure a new service you have make changes in load balancer as well
 
-All of it can be done using `Ingress` a kuberntes object that will allow to expose multiple services, load balancing, routing and other stuff. The ingress still need to be exposed as a Node port service or a load balancer in cloud environment.
+All of it can be done using `Ingress` a kubernetes object that will allow to expose multiple services, load balancing, routing and other stuff. The ingress still need to be exposed as a Node port service or a load balancer in cloud environment.
 
 Without ingress we can do it using a reverse proxy or load balancing solution like nginx, HAProxy or traefik. We have to configure URL routes, configuring SSL certificates and other configuration.
 
@@ -123,7 +123,7 @@ If you have multiple domain entries in your DNS, you can point them to same ingr
  - www.my-online-store.com
  - www.wear.my-online-store.com
  - www.watch.my-online-store.com
- - Everything elese
+ - Everything else
 
 You can specify rules to route traffic based on different conditions. Within each rule you can specify different `paths` to route traffic to different backend services.
 
@@ -132,7 +132,7 @@ For example for `www.my-online-store.com` we can have following paths
 - /watch
 - / 
 
-So we have a rule for each domain name and against each rule we can have multiple paths.
+So we have a rule for each domain name and against each rule and we can have multiple paths.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -159,8 +159,7 @@ spec:
           number: 80
 ```
 
-K8s expect a default backend service in case on path matches, it route traffice to that service
-
+K8s expect a default backend service in case no path matches, it route traffic to that service
 
 For multiple host names
 
@@ -230,10 +229,10 @@ spec:
   - Ingress
  ingress:
   - from:
-    - podSelector:
+    - podSelector:  # pod that will be allowed to reach the above mentioned pod (role=db)
        matchLabels:
-        name: api-pod
-      namespaceSelector:    # if we want only pods (with label name=api-pod) from a sepcific namespace can reach to database we have to provide a namespace selector as well.
+        name: api-pod 
+      namespaceSelector:  # if we want only pods (with label name=api-pod) from a specific namespace can reach to database, we provide a namespace selector also
        matchLabels:
         name: prod
     - ipBlock:

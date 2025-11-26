@@ -695,9 +695,9 @@ spec:
 
 What will happen if the Pod does not find any node with given label or the label is changed in the future ? To answer this question we have to consider the 
 
- - requiredDuringSchedulingIgnoredDuringExecution
+ - **requiredDuringSchedulingIgnoredDuringExecution**
     - if no node is found with matching label then the pod will not be scheduled.
- - preferredDuringSchedulingIgnoredDuringExecution
+ - **preferredDuringSchedulingIgnoredDuringExecution**
     - k8s will try to schedule the pod on a node with matching label, however if not found Pod will be scheduled on some other node.
 
 
